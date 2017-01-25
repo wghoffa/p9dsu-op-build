@@ -4,9 +4,12 @@
 #
 ################################################################################
 
-P9DSU_XML_VERSION ?= 0df4b18240f364648d2319c35d3021101f205930
-P9DSU_XML_SITE_METHOD = git
-P9DSU_XML_SITE = git@172.31.32.149:p9/p9dsu-xml.git
+#P9DSU_XML_VERSION ?= 0df4b18240f364648d2319c35d3021101f205930
+P9DSU_XML_VERSION ?= SMC_ONSITE
+#P9DSU_XML_SITE_METHOD = git
+P9DSU_XML_SITE_METHOD = local
+#P9DSU_XML_SITE = git@172.31.32.149:p9/p9dsu-xml.git
+P9DSU_XML_SITE = /home/smc/p9dsu/p9dsu-xml
 
 P9DSU_XML_LICENSE = Apache-2.0
 P9DSU_XML_DEPENDENCIES = hostboot-install-images openpower-mrw-install-images common-p8-xml-install-images
