@@ -1,0 +1,47 @@
+From ff5886ab1e7d8c2a95e910313f4bff4cf4b1b4d7 Mon Sep 17 00:00:00 2001
+From: jim <jim.yuan@supermicro.com>
+Date: Tue, 21 Feb 2017 18:51:34 -0800
+Subject: [PATCH] uart test.
+
+---
+ hw/lpc-uart.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/hw/lpc-uart.c b/hw/lpc-uart.c
+index d7e2830..71fd23f 100644
+--- a/hw/lpc-uart.c
++++ b/hw/lpc-uart.c
+@@ -485,12 +485,12 @@ static void uart_setup_opal_console(void)
+ 
+ static void uart_init_opal_console(void)
+ {
+-	const char *nv_policy;
++//	const char *nv_policy;
+ 
+ 	/* Update the policy if the corresponding nvram variable
+ 	 * is present
+ 	 */
+-	nv_policy = nvram_query("uart-con-policy");
++/*	nv_policy = nvram_query("uart-con-policy");
+ 	if (nv_policy) {
+ 		if (!strcmp(nv_policy, "opal"))
+ 			uart_console_policy = UART_CONSOLE_OPAL;
+@@ -501,12 +501,15 @@ static void uart_init_opal_console(void)
+ 			      "UART: Unknown console policy in NVRAM: %s\n",
+ 			      nv_policy);
+ 	}
++*/
++	uart_console_policy = UART_CONSOLE_OPAL;
+ 	if (uart_console_policy == UART_CONSOLE_OPAL)
+ 		uart_setup_opal_console();
+ 	else
+ 		uart_setup_os_passthrough();
+ }
+ 
++
+ struct opal_con_ops uart_opal_con = {
+ 	.name = "OPAL UART console",
+ 	.init = uart_init_opal_console,
+-- 
+2.9.2.windows.1
+
