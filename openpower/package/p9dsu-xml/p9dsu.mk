@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-P9DSU_XML_VERSION ?= 4335f86e2ca83e8ad058cadef28bc027470981a8
+P9DSU_XML_VERSION ?= 5fa0d2322192666f4c001b834d182b288a92c96c
 P9DSU_XML_SITE ?= $(call github,supermicro,p9dsu-xml,$(P9DSU_XML_VERSION))
 
 P9DSU_XML_LICENSE = Apache-2.0
