@@ -1,0 +1,123 @@
+From 64f8da68ad01ddcab731c12f9fc9e2a973232522 Mon Sep 17 00:00:00 2001
+From: Matt Spinler <spinler@us.ibm.com>
+Date: Fri, 5 Feb 2016 10:35:21 -0600
+Subject: [PATCH] Support Provisioning PNOR partition XML element.
+
+If the element is present, set a flag in the PNOR TOC. Other
+code, like BMC code, would then erase these partitions when
+the system is reprovisioned.
+
+RTC: 143305
+Forwardport: yes
+Change-Id: I457895f65d81e0a971bf301f16be2921dc21a24a
+---
+ src/build/buildpnor/PnorUtils.pm  | 4 +++-
+ src/build/buildpnor/buildpnor.pl  | 2 +-
+ src/include/usr/pnor/pnor_const.H | 5 +++--
+ src/usr/pnor/common/ffs_hb.H      | 5 +++--
+ src/usr/pnor/pnorrp.C             | 7 ++-----
+ 5 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/build/buildpnor/PnorUtils.pm b/src/build/buildpnor/PnorUtils.pm
+index dcb5241..bcdf53a 100644
+--- a/src/build/buildpnor/PnorUtils.pm
++++ b/src/build/buildpnor/PnorUtils.pm
+@@ -6,7 +6,7 @@
+ #
+ # OpenPOWER HostBoot Project
+ #
+-# Contributors Listed Below - COPYRIGHT 2016
++# Contributors Listed Below - COPYRIGHT 2016,2017
+ # [+] International Business Machines Corp.
+ #
+ #
+@@ -154,6 +154,7 @@ sub loadPnorLayout
+             my $sha512Version = (exists $sectionEl->{sha512Version} ? "yes" : "no");
+             my $sha512perEC = (exists $sectionEl->{sha512perEC} ? "yes" : "no");
+             my $preserved = (exists $sectionEl->{preserved} ? "yes" : "no");
++            my $reprovision = (exists $sectionEl->{reprovision} ? "yes" : "no");
+             my $readOnly = (exists $sectionEl->{readOnly} ? "yes" : "no");
+             if (($i_testRun == 0) && ($sectionEl->{testonly}[0] eq "yes"))
+             {
+@@ -179,6 +180,7 @@ sub loadPnorLayout
+             $$i_pnorLayoutRef{sections}{$physicalOffset}{sha512Version} = $sha512Version;
+             $$i_pnorLayoutRef{sections}{$physicalOffset}{sha512perEC} = $sha512perEC;
+             $$i_pnorLayoutRef{sections}{$physicalOffset}{preserved} = $preserved;
++            $$i_pnorLayoutRef{sections}{$physicalOffset}{reprovision} = $reprovision;
+             $$i_pnorLayoutRef{sections}{$physicalOffset}{readOnly} = $readOnly;
+ 
+             #store the physical offsets of each section in a hash, so, it is easy
+diff --git a/src/build/buildpnor/buildpnor.pl b/src/build/buildpnor/buildpnor.pl
+index 138f865..3cfb5d6 100755
+--- a/src/build/buildpnor/buildpnor.pl
++++ b/src/build/buildpnor/buildpnor.pl
+@@ -6,7 +6,7 @@
+ #
+ # OpenPOWER HostBoot Project
+ #
+-# Contributors Listed Below - COPYRIGHT 2012,2016
++# Contributors Listed Below - COPYRIGHT 2012,2017
+ # [+] International Business Machines Corp.
+ #
+ #
+diff --git a/src/include/usr/pnor/pnor_const.H b/src/include/usr/pnor/pnor_const.H
+index 34395fb..3b4b199 100644
+--- a/src/include/usr/pnor/pnor_const.H
++++ b/src/include/usr/pnor/pnor_const.H
+@@ -88,8 +88,9 @@ struct SectionInfo_t
+     uint64_t size;      /**< Size of partition in bytes */
+     bool eccProtected;  /**< Section is ECC protected */
+     bool sha512Version; /**< Version Checking */
+-    bool sha512perEC; /**< Version Checking perEC */
+-    bool readOnly; /**< Section is read only */
++    bool sha512perEC;   /**< Version Checking perEC */
++    bool readOnly;      /**< Section is read only */
++    bool reprovision;   /**< Erase this section during a reprovision */
+ #ifdef CONFIG_SECUREBOOT
+     size_t secureProtectedPayloadSize; /**< Cache the secure payload size so
+                                             that the secure container only
+diff --git a/src/usr/pnor/common/ffs_hb.H b/src/usr/pnor/common/ffs_hb.H
+index 62e2ad78..7203880 100644
+--- a/src/usr/pnor/common/ffs_hb.H
++++ b/src/usr/pnor/common/ffs_hb.H
+@@ -5,7 +5,7 @@
+ /*                                                                        */
+ /* OpenPOWER HostBoot Project                                             */
+ /*                                                                        */
+-/* Contributors Listed Below - COPYRIGHT 2012,2016                        */
++/* Contributors Listed Below - COPYRIGHT 2012,2017                        */
+ /* [+] International Business Machines Corp.                              */
+ /*                                                                        */
+ /*                                                                        */
+@@ -67,8 +67,9 @@ enum
+     FFS_MISC_PRESERVED     = 0x80,    /**< Preserved across code updates */
+     FFS_MISC_READ_ONLY     = 0x40,    /**< Read only section */
+     FFS_MISC_PSEUDO        = 0x20,    /**< Pseudo partition */
++    FFS_MISC_REPROVISION   = 0x10,    /**< Erased during reprovision */
+     FFS_MISC_GOLDEN        = 0x01,    /**< Golden side of PNOR */
+-    FFS_MISC_UNUSED        = 0x1E,    /**< Unused MISC Flags */
++    FFS_MISC_UNUSED        = 0x0E,    /**< Unused MISC Flags */
+ };
+ 
+ /**
+diff --git a/src/usr/pnor/pnorrp.C b/src/usr/pnor/pnorrp.C
+index 15739c3..6bca58f 100644
+--- a/src/usr/pnor/pnorrp.C
++++ b/src/usr/pnor/pnorrp.C
+@@ -617,11 +617,8 @@ errlHndl_t PnorRP::getSectionInfo( PNOR::SectionId i_section,
+                                    != 0) ? true : false;
+             o_info.readOnly = ((iv_TOC[id].misc & FFS_MISC_READ_ONLY)
+                                    != 0) ? true : false;
+-// TODO securebootp9 the following field does not exist in p9. If the field is
+-// to be added to p9 we need to enable this line at that time, or remove and
+-// replace with appropriate code.
+-//            o_info.reprovision = ((iv_TOC[id].misc & FFS_MISC_REPROVISION)
+-//                                   != 0) ? true : false;
++            o_info.reprovision = ((iv_TOC[id].misc & FFS_MISC_REPROVISION)
++                                   != 0) ? true : false;
+         }
+ 
+     } while(0);
+-- 
+1.8.2.2
+
